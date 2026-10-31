@@ -15,8 +15,14 @@ public class OpeningState extends UIState {
 
         System.out.print("Enter choice: ");
 
-        int choice = context.getScanner().nextInt();
-        context.getScanner().nextLine();
+        String input = context.getScanner().nextLine();
+        int choice;
+        try {
+            choice = Integer.parseInt(input.trim());
+        } catch (NumberFormatException e) {
+            System.out.println("Please enter a valid number.");
+            return;
+        }
 
         switch (choice) {
 
@@ -45,7 +51,7 @@ public class OpeningState extends UIState {
     private void loginClient() {
 
         System.out.print("Enter Client ID: ");
-        String clientID = context.getScanner().nextLine();
+        String clientID = context.getScanner().nextLine().trim();
 
         // Validate that the client exists
         if (context.findClient(clientID) == null) {
