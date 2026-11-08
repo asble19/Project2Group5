@@ -1,119 +1,247 @@
+import javax.swing.*;
+import java.awt.*;
+
 public class ManagerMenuState extends UIState {
 
     public ManagerMenuState(Context context) {
         super(context);
     }
 
+    // Replaces the original run() method.
+    // Creates a Swing panel instead of printing a console menu.
     @Override
-    public void run() {
+    public JPanel createPanel() {
 
-        System.out.println("\n========== MANAGER MENU ==========");
-        System.out.println("1. Add Product");
-        System.out.println("2. Display Waitlist for Product");
-        System.out.println("3. Receive Shipment");
-        System.out.println("4. Become Clerk");
-        System.out.println("0. Logout");
+        JPanel panel = new JPanel(new GridBagLayout());
 
-        System.out.print("Enter choice: ");
+        // Creates a vertical layout for the menu.
+        JPanel menu = new JPanel();
+        menu.setLayout(new BoxLayout(menu, BoxLayout.Y_AXIS));
 
-        String input = context.getScanner().nextLine();
+        // Replaces the console heading with a GUI label.
+        JLabel title = new JLabel("MANAGER MENU");
+        title.setFont(new Font("Arial", Font.BOLD, 24));
+        title.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        try {
-            int choice = Integer.parseInt(input);
+        // Replaces the numbered menu options with buttons.
+        JButton addProductButton = new JButton("Add Product");
+        JButton waitlistButton = new JButton("Display Waitlist for Product");
+        JButton shipmentButton = new JButton("Receive Shipment");
+        JButton becomeClerkButton = new JButton("Become Clerk");
+        JButton logoutButton = new JButton("Logout");
 
-            switch (choice) {
+        // Each button has its own action listener.
+        // This replaces the original switch statement.
+        addProductButton.addActionListener(e -> addProduct());
 
-                case 1:
-                    addProduct();
-                    break;
+        waitlistButton.addActionListener(e -> displayWaitlist());
 
-                case 2:
-                    displayWaitlist();
-                    break;
+        shipmentButton.addActionListener(e -> receiveShipment());
 
-                case 3:
-                    receiveShipment();
-                    break;
+        // Uses the existing FSM transition to Clerk mode.
+        becomeClerkButton.addActionListener(e ->
+            context.changeState(Context.BECOME_CLERK)
+        );
 
-                case 4:
-                    context.changeState(Context.BECOME_CLERK);
-                    break;
+        // Uses the existing FSM logout transition.
+        logoutButton.addActionListener(e -> {
+            JOptionPane.showMessageDialog(
+                context.getFrame(),
+                "Logging out..."
+            );
+            context.changeState(Context.LOGOUT);
+        });
 
-                case 0:
-                    System.out.println("Logging out...");
-                    context.changeState(Context.LOGOUT);
-                    break;
+        // Arranges the title and buttons vertically.
+        menu.add(title);
+        menu.add(Box.createVerticalStrut(20));
 
-                default:
-                    System.out.println("Invalid choice. Try again.");
-            }
+        menu.add(addProductButton);
+        menu.add(Box.createVerticalStrut(10));
 
-        } catch (NumberFormatException e) {
-            System.out.println("Please enter a valid number.");
-        }
+        menu.add(waitlistButton);
+        menu.add(Box.createVerticalStrut(10));
+
+        menu.add(shipmentButton);
+        menu.add(Box.createVerticalStrut(10));
+
+        menu.add(becomeClerkButton);
+        menu.add(Box.createVerticalStrut(10));
+
+        menu.add(logoutButton);
+
+        panel.add(menu);
+
+        // Returns the completed GUI panel to Context.
+        return panel;
     }
 
-    // Add a new product
+    // Replaces Scanner input with GUI input dialogs.
+    // Validates the quantity and price, then uses the existing Warehouse method to add the product.
     private void addProduct() {
 
-        System.out.print("Enter product name: ");
-        String name = context.getScanner().nextLine();
+        String name = JOptionPane.showInputDialog(
+            context.getFrame(),
+            "Enter product name:"
+        );
+
+        if (name == null) {
+            return;
+        }
+
+        if (name.trim().isEmpty()) {
+            JOptionPane.showMessageDialog(
+                context.getFrame(),
+                "Product name cannot be empty."
+            );
+            return;
+        }
+
+        String quantityInput = JOptionPane.showInputDialog(
+            context.getFrame(),
+            "Enter quantity:"
+        );
+
+        if (quantityInput == null) {
+            return;
+        }
+
+        String priceInput = JOptionPane.showInputDialog(
+            context.getFrame(),
+            "Enter price:"
+        );
+
+        if (priceInput == null) {
+            return;
+        }
 
         try {
-            System.out.print("Enter quantity: ");
-            int quantity = Integer.parseInt(context.getScanner().nextLine());
-
-            System.out.print("Enter price: ");
-            double price = Double.parseDouble(context.getScanner().nextLine());
+            int quantity = Integer.parseInt(quantityInput.trim());
+            double price = Double.parseDouble(priceInput.trim());
 
             if (quantity < 0 || price < 0) {
-                System.out.println("Quantity and price cannot be negative.");
+                JOptionPane.showMessageDialog(
+                    context.getFrame(),
+                    "Quantity and price cannot be negative."
+                );
                 return;
             }
 
+            // Adds the product through the Warehouse backend.
             Product product = context.getWarehouse().addProduct(
-                name, quantity, price
+                name.trim(),
+                quantity,
+                price
             );
 
-            System.out.println("Product successfully added:");
-            System.out.println(product);
+            // Displays the new product in a GUI dialog.
+            JOptionPane.showMessageDialog(
+                context.getFrame(),
+                "Product successfully added:\n" + product,
+                "PRODUCT ADDED",
+                JOptionPane.INFORMATION_MESSAGE
+            );
 
         } catch (NumberFormatException e) {
-            System.out.println("Please enter valid numbers.");
+            JOptionPane.showMessageDialog(
+                context.getFrame(),
+                "Please enter valid numbers."
+            );
         }
     }
 
-    // Display the waitlist for a product
+    // Replaces Scanner input with a GUI input dialog.
+    // Displays the waitlist using the existing Warehouse method.
     private void displayWaitlist() {
 
-        System.out.print("Enter Product ID: ");
-        String productID = context.getScanner().nextLine();
+        String productID = JOptionPane.showInputDialog(
+            context.getFrame(),
+            "Enter Product ID:"
+        );
 
-        context.getWarehouse().displayWaitlist(productID);
+        if (productID == null) {
+            return;
+        }
+
+        final String enteredProductID = productID.trim();
+
+        showWarehouseOutput(() ->
+            context.getWarehouse().displayWaitlist(enteredProductID)
+        );
     }
 
-    // Receive a shipment for a product
+    // Replaces Scanner input with GUI input dialogs.
+    // Validates shipment quantity and calls the same Warehouse receiveShipment() method.
     private void receiveShipment() {
 
-        System.out.print("Enter Product ID: ");
-        String productID = context.getScanner().nextLine();
+        String productID = JOptionPane.showInputDialog(
+            context.getFrame(),
+            "Enter Product ID:"
+        );
+
+        if (productID == null) {
+            return;
+        }
+
+        final String enteredProductID = productID.trim();
+
+        String quantityInput = JOptionPane.showInputDialog(
+            context.getFrame(),
+            "Enter shipment quantity:"
+        );
+
+        if (quantityInput == null) {
+            return;
+        }
 
         try {
-            System.out.print("Enter shipment quantity: ");
-            int quantity = Integer.parseInt(context.getScanner().nextLine());
+            int quantity = Integer.parseInt(quantityInput.trim());
 
             if (quantity <= 0) {
-                System.out.println("Shipment quantity must be greater than zero.");
+                JOptionPane.showMessageDialog(
+                    context.getFrame(),
+                    "Shipment quantity must be greater than zero."
+                );
                 return;
             }
 
-            context.getWarehouse().receiveShipment(productID, quantity);
+            // Receives the shipment through the Warehouse backend.
+            showWarehouseOutput(() ->
+                context.getWarehouse().receiveShipment(
+                    enteredProductID,
+                    quantity
+                )
+            );
 
         } catch (NumberFormatException e) {
-            System.out.println("Please enter a valid quantity.");
+            JOptionPane.showMessageDialog(
+                context.getFrame(),
+                "Please enter a valid quantity."
+            );
         }
     }
 
+    // Captures output from existing Warehouse methods that use System.out.println(), without changing backend classes.
+    private void showWarehouseOutput(Runnable action) {
+
+        String output = context.captureOutput(action);
+
+        JTextArea textArea = new JTextArea(output, 15, 40);
+        textArea.setEditable(false);
+        textArea.setLineWrap(true);
+        textArea.setWrapStyleWord(true);
+
+        JScrollPane scrollPane = new JScrollPane(textArea);
+
+        JOptionPane.showMessageDialog(
+            context.getFrame(),
+            scrollPane,
+            "WAREHOUSE INFORMATION",
+            JOptionPane.INFORMATION_MESSAGE
+        );
+    }
+
+    // Identifies this state as MANAGER in the FSM.
     @Override
     public int getStateIndex() {
         return Context.MANAGER;

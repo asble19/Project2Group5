@@ -1,132 +1,216 @@
+import javax.swing.*;
+import java.awt.*;
+
 public class ClientMenuState extends UIState {
 
     public ClientMenuState(Context context) {
         super(context);
     }
 
+    // Replaces og run() method.
+    // Creates a GUI panel instead of printing a numbered menu.
     @Override
-    public void run() {
+    public JPanel createPanel() {
 
-        System.out.println("\n========== CLIENT MENU ==========");
-        System.out.println("1. Display Account Information");
-        System.out.println("2. Display All Products");
-        System.out.println("3. Display Transactions");
-        System.out.println("4. Add Product to Wishlist");
-        System.out.println("5. Display Wishlist");
-        System.out.println("6. Place Order");
-        System.out.println("0. Logout");
+        JPanel panel = new JPanel(new GridBagLayout());
 
-        System.out.print("Enter choice: ");
+        // Creates a vertical menu layout.
+        JPanel menu = new JPanel();
+        menu.setLayout(new BoxLayout(menu, BoxLayout.Y_AXIS));
 
-        String input = context.getScanner().nextLine();
+        // Replaces the console heading with a GUI label.
+        JLabel title = new JLabel("CLIENT MENU");
+        title.setFont(new Font("Arial", Font.BOLD, 24));
+        title.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        try {
-            int choice = Integer.parseInt(input);
+        // Replaces the numbered console options with buttons.
+        JButton accountButton = new JButton("Display Account Information");
+        JButton productsButton = new JButton("Display All Products");
+        JButton transactionsButton = new JButton("Display Transactions");
+        JButton addWishlistButton = new JButton("Add Product to Wishlist");
+        JButton wishlistButton = new JButton("Display Wishlist");
+        JButton orderButton = new JButton("Place Order");
+        JButton logoutButton = new JButton("Logout");
 
-            switch (choice) {
+        // Each button has its own action listener.
+        // This replaces the original switch statement.
+        accountButton.addActionListener(e -> displayAccountInformation());
 
-                case 1:
-                    displayAccountInformation();
-                    break;
+        productsButton.addActionListener(e ->
+            showWarehouseOutput(() ->
+                context.getWarehouse().displayAllProducts()
+            )
+        );
 
-                case 2:
-                    context.getWarehouse().displayAllProducts();
-                    break;
+        transactionsButton.addActionListener(e -> displayTransactions());
 
-                case 3:
-                    displayTransactions();
-                    break;
+        addWishlistButton.addActionListener(e -> addToWishlist());
 
-                case 4:
-                    addToWishlist();
-                    break;
+        wishlistButton.addActionListener(e -> displayWishlist());
 
-                case 5:
-                    displayWishlist();
-                    break;
+        orderButton.addActionListener(e -> placeOrder());
 
-                case 6:
-                    placeOrder();
-                    break;
+        logoutButton.addActionListener(e -> {
+            JOptionPane.showMessageDialog(
+                context.getFrame(),
+                "Logging out..."
+            );
+            context.changeState(Context.LOGOUT);
+        });
 
-                case 0:
-                    System.out.println("Logging out...");
-                    context.changeState(Context.LOGOUT);
-                    break;
+        // Arranges all components vertically.
+        menu.add(title);
+        menu.add(Box.createVerticalStrut(20));
 
-                default:
-                    System.out.println("Invalid choice. Try again.");
-            }
+        menu.add(accountButton);
+        menu.add(Box.createVerticalStrut(10));
 
-        } catch (NumberFormatException e) {
-            System.out.println("Please enter a valid number.");
-        }
+        menu.add(productsButton);
+        menu.add(Box.createVerticalStrut(10));
+
+        menu.add(transactionsButton);
+        menu.add(Box.createVerticalStrut(10));
+
+        menu.add(addWishlistButton);
+        menu.add(Box.createVerticalStrut(10));
+
+        menu.add(wishlistButton);
+        menu.add(Box.createVerticalStrut(10));
+
+        menu.add(orderButton);
+        menu.add(Box.createVerticalStrut(10));
+
+        menu.add(logoutButton);
+
+        panel.add(menu);
+
+        // Returns the completed GUI panel to Context.
+        return panel;
     }
 
-    // Display the current client's account information
+    // Retrieves the current client's account information.
+    // Displays information in a GUI dialog instead of printing it to the console.
     private void displayAccountInformation() {
 
         Client client = context.findClient(context.getClientID());
 
         if (client == null) {
-            System.out.println("Client information could not be found.");
+            JOptionPane.showMessageDialog(
+                context.getFrame(),
+                "Client information could not be found."
+            );
             return;
         }
 
-        System.out.println("\n========== ACCOUNT INFORMATION ==========");
-        System.out.println(client);
+        JOptionPane.showMessageDialog(
+            context.getFrame(),
+            client.toString(),
+            "ACCOUNT INFORMATION",
+            JOptionPane.INFORMATION_MESSAGE
+        );
     }
 
-    // Display the client's transaction history
+    // Displays the client's transaction history.
+    // Captures backend console output and displays it in a GUI dialog without modifying the backend.
     private void displayTransactions() {
 
-        System.out.println("\n========== TRANSACTIONS ==========");
-
-        context.getWarehouse().displayInvoices(context.getClientID());
+        showWarehouseOutput(() ->
+            context.getWarehouse().displayInvoices(context.getClientID())
+        );
     }
 
-    // Add a product to the client's wishlist
+    // Replaces Scanner input with GUI input dialogs.
+    // Checks that the quantity is greater than zero and calls the same warehouse method.
     private void addToWishlist() {
 
-        System.out.print("Enter Product ID: ");
-        String productID = context.getScanner().nextLine();
+        String productID = JOptionPane.showInputDialog(
+            context.getFrame(),
+            "Enter Product ID:"
+        );
+
+        if (productID == null) {
+            return;
+        }
+
+        //productID = productID.trim();
+        final String enteredProductID = productID.trim();
+
+        String quantityInput = JOptionPane.showInputDialog(
+            context.getFrame(),
+            "Enter quantity:"
+        );
+
+        if (quantityInput == null) {
+            return;
+        }
 
         try {
-            System.out.print("Enter quantity: ");
-            int quantity = Integer.parseInt(context.getScanner().nextLine());
+            int quantity = Integer.parseInt(quantityInput.trim());
 
             if (quantity <= 0) {
-                System.out.println("Quantity must be greater than zero.");
+                JOptionPane.showMessageDialog(
+                    context.getFrame(),
+                    "Quantity must be greater than zero."
+                );
                 return;
             }
 
-            context.getWarehouse().addProductToWishlist(
-                context.getClientID(),
-                productID,
-                quantity
+            // Adds the requested product to the wishlist.
+            showWarehouseOutput(() ->
+                context.getWarehouse().addProductToWishlist(
+                    context.getClientID(),
+                    productID,
+                    quantity
+                )
             );
 
         } catch (NumberFormatException e) {
-            System.out.println("Please enter a valid quantity.");
+            JOptionPane.showMessageDialog(
+                context.getFrame(),
+                "Please enter a valid quantity."
+            );
         }
     }
 
-    // Display the client's wishlist
+    // Displays the current client's wishlist.
+    // Displays the backend output in a GUI dialog.
     private void displayWishlist() {
 
-        System.out.println("\n========== YOUR WISHLIST ==========");
-
-        context.getWarehouse().displayWishlist(context.getClientID());
+        showWarehouseOutput(() ->
+            context.getWarehouse().displayWishlist(context.getClientID())
+        );
     }
 
-    // Place an order using the client's wishlist
+    // Processes an order using the client's wishlist.
+    // Displays the backend output in a GUI dialog.
     private void placeOrder() {
 
-        System.out.println("\n========== PLACE ORDER ==========");
-
-        context.getWarehouse().processOrder(context.getClientID());
+        showWarehouseOutput(() ->
+            context.getWarehouse().processOrder(context.getClientID())
+        );
     }
 
+    // Helper method for displaying output from existing warehouse methods that use System.out.println().
+    private void showWarehouseOutput(Runnable action) {
+
+        String output = context.captureOutput(action);
+
+        JTextArea textArea = new JTextArea(output, 15, 40);
+        textArea.setEditable(false);
+        textArea.setLineWrap(true);
+        textArea.setWrapStyleWord(true);
+
+        JScrollPane scrollPane = new JScrollPane(textArea);
+
+        JOptionPane.showMessageDialog(
+            context.getFrame(),
+            scrollPane,
+            "WAREHOUSE INFORMATION",
+            JOptionPane.INFORMATION_MESSAGE
+        );
+    }
+
+    // Identifies this state as CLIENT in the FSM.
     @Override
     public int getStateIndex() {
         return Context.CLIENT;

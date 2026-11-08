@@ -1,8 +1,13 @@
 import java.util.ArrayDeque;
 import java.util.Deque;
-import java.util.Scanner;
 import java.util.ArrayList;
 import java.util.List;
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
+
+import javax.swing.JFrame;
+import javax.swing.JOptionPane;
+import javax.swing.SwingUtilities;
 
 public class Context {
 
@@ -30,21 +35,19 @@ public class Context {
     private Warehouse warehouse;
     private String clientID;
 
-    // Remembers previous roles when switching menus
+    // Remembers previous roles when switching menus.
     private Deque<UIState> returnStates;
 
-    // One Scanner shared by every state
-    private Scanner scanner;
-
-    private boolean running;
+    // ADDED: Main Swing application window.
+    private JFrame frame;
 
     private Context() {
 
         warehouse = Warehouse.instance();
-        scanner = new Scanner(System.in);
         returnStates = new ArrayDeque<UIState>();
         knownClients = new ArrayList<Client>();
 
+        // Creates the four FSM states.
         states = new UIState[4];
 
         states[OPENING] = new OpeningState(this);
@@ -68,11 +71,19 @@ public class Context {
             { -1, -1, -1, -1, CLERK, OPENING }     // Manager
         };
 
+        // Opening is the initial state.
         currentState = states[OPENING];
-        running = true;
+
+        // ADDED: Creates the main GUI window.
+        frame = new JFrame("Warehouse Management System");
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setSize(600, 500);
+        frame.setLocationRelativeTo(null);
     }
 
+    // Singleton instance.
     public static Context instance() {
+
         if (context == null) {
             context = new Context();
         }
@@ -80,24 +91,38 @@ public class Context {
         return context;
     }
 
-    // Main FSM loop
+    // Replaces the original console FSM loop.
+    // Opens the window and displays the initial state.
     public void run() {
-        while (running) {
-            currentState.run();
-        }
+
+        showCurrentState();
+        frame.setVisible(true);
     }
 
-    // Centralized state transition
+    // ADDED: Displays the current state's GUI panel.
+    private void showCurrentState() {
+
+        frame.setContentPane(currentState.createPanel());
+
+        frame.revalidate();
+        frame.repaint();
+    }
+
+    // Centralized FSM transition method.
+    // Refreshes the GUI after a successful transition.
     public void changeState(int event) {
 
         int currentIndex = currentState.getStateIndex();
 
         if (event < 0 || event >= transitionTable[currentIndex].length) {
-            System.out.println("Invalid transition.");
+            JOptionPane.showMessageDialog(
+                frame,
+                "Invalid transition."
+            );
             return;
         }
 
-        // Handle logout using the saved return path
+        // Handles logout using the saved return path.
         if (event == LOGOUT) {
 
             if (currentIndex == CLIENT || currentIndex == CLERK) {
@@ -114,24 +139,34 @@ public class Context {
             }
 
             clientID = null;
+
+            // ADDED: Updates the GUI after logging out.
+            showCurrentState();
             return;
         }
 
         int nextIndex = transitionTable[currentIndex][event];
 
         if (nextIndex == -1) {
-            System.out.println("That transition is not allowed.");
+            JOptionPane.showMessageDialog(
+                frame,
+                "That transition is not allowed."
+            );
             return;
         }
 
-        // Remember the previous role when switching menus
+        // Remembers the previous role when switching menus.
         if (event == BECOME_CLIENT || event == BECOME_CLERK) {
             returnStates.push(currentState);
         }
 
         currentState = states[nextIndex];
+
+        // ADDED: Displays the new state's GUI panel.
+        showCurrentState();
     }
 
+    // Stores the current Client ID.
     public void setClientID(String clientID) {
         this.clientID = clientID;
     }
@@ -140,28 +175,56 @@ public class Context {
         return clientID;
     }
 
+    // Provides access to the Warehouse backend.
     public Warehouse getWarehouse() {
         return warehouse;
     }
 
-    public Scanner getScanner() {
-        return scanner;
+    // ADDED: Provides access to the main GUI window.
+    // Used as the parent for JOptionPane dialogs.
+    public JFrame getFrame() {
+        return frame;
     }
 
+    // ADDED: Captures console output from existing backend methods.
+    // This allows the GUI to display backend results without modifying the Warehouse classes.
+    public String captureOutput(Runnable action) {
+
+        PrintStream originalOutput = System.out;
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+
+        try (PrintStream capture = new PrintStream(output)) {
+
+            System.setOut(capture);
+
+            action.run();
+
+            capture.flush();
+
+        } finally {
+            // Restores the original console output.
+            System.setOut(originalOutput);
+        }
+
+        return output.toString();
+    }
+
+    // Closes the GUI instead of stopping a console loop.
     public void exit() {
-        running = false;
+        frame.dispose();
+        System.exit(0);
     }
 
     public UIState getCurrentState() {
         return currentState;
     }
 
-    // Keep track of clients created during this session
+    // Keeps track of clients created during this session.
     public void registerClient(Client client) {
         knownClients.add(client);
     }
 
-    // Find a client by ID
+    // Finds a client by ID.
     public Client findClient(String clientID) {
 
         for (Client client : knownClients) {
@@ -173,11 +236,16 @@ public class Context {
         return null;
     }
 
-    // Get all clients created during this session
+    // Returns all clients created during this session.
     public List<Client> getKnownClients() {
         return knownClients;
     }
+
+    // ADDED: Starts the Swing application on the Event Dispatch Thread.
     public static void main(String[] args) {
-        Context.instance().run();
+
+        SwingUtilities.invokeLater(() -> {
+            Context.instance().run();
+        });
     }
 }

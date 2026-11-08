@@ -1,161 +1,263 @@
+import javax.swing.*;
+import java.awt.*;
+
 public class ClerkMenuState extends UIState {
 
     public ClerkMenuState(Context context) {
         super(context);
     }
 
+    // Replaces the original run() method.
+    // Creates a Swing panel instead of printing a console menu.
     @Override
-    public void run() {
+    public JPanel createPanel() {
 
-        System.out.println("\n========== CLERK MENU ==========");
-        System.out.println("1. Add Client");
-        System.out.println("2. Display All Products");
-        System.out.println("3. Display All Clients");
-        System.out.println("4. Display Clients with Outstanding Balance");
-        System.out.println("5. Record Payment");
-        System.out.println("6. Become Client");
-        System.out.println("0. Logout");
+        JPanel panel = new JPanel(new GridBagLayout());
 
-        System.out.print("Enter choice: ");
+        // Creates a vertical layout for the menu.
+        JPanel menu = new JPanel();
+        menu.setLayout(new BoxLayout(menu, BoxLayout.Y_AXIS));
 
-        String input = context.getScanner().nextLine();
+        // Replaces the console heading with a GUI label.
+        JLabel title = new JLabel("CLERK MENU");
+        title.setFont(new Font("Arial", Font.BOLD, 24));
+        title.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        try {
-            int choice = Integer.parseInt(input);
+        // Replaces the numbered menu options with buttons.
+        JButton addClientButton = new JButton("Add Client");
+        JButton productsButton = new JButton("Display All Products");
+        JButton clientsButton = new JButton("Display All Clients");
+        JButton balanceButton =
+            new JButton("Display Clients with Outstanding Balance");
+        JButton paymentButton = new JButton("Record Payment");
+        JButton becomeClientButton = new JButton("Become Client");
+        JButton logoutButton = new JButton("Logout");
 
-            switch (choice) {
+        // Each button has its own action listener.
+        addClientButton.addActionListener(e -> addClient());
 
-                case 1:
-                    addClient();
-                    break;
+        productsButton.addActionListener(e ->
+            showWarehouseOutput(() ->
+                context.getWarehouse().displayAllProducts()
+            )
+        );
 
-                case 2:
-                    context.getWarehouse().displayAllProducts();
-                    break;
+        clientsButton.addActionListener(e -> displayAllClients());
 
-                case 3:
-                    displayAllClients();
-                    break;
+        balanceButton.addActionListener(e -> displayClientsWithBalance());
 
-                case 4:
-                    displayClientsWithBalance();
-                    break;
+        paymentButton.addActionListener(e -> recordPayment());
 
-                case 5:
-                    recordPayment();
-                    break;
+        becomeClientButton.addActionListener(e -> becomeClient());
 
-                case 6:
-                    becomeClient();
-                    break;
+        // Uses the existing FSM logout transition.
+        logoutButton.addActionListener(e -> {
+            JOptionPane.showMessageDialog(
+                context.getFrame(),
+                "Logging out..."
+            );
+            context.changeState(Context.LOGOUT);
+        });
 
-                case 0:
-                    System.out.println("Logging out...");
-                    context.changeState(Context.LOGOUT);
-                    break;
+        // Arranges the title and buttons vertically.
+        menu.add(title);
+        menu.add(Box.createVerticalStrut(20));
 
-                default:
-                    System.out.println("Invalid choice. Try again.");
-            }
+        menu.add(addClientButton);
+        menu.add(Box.createVerticalStrut(10));
 
-        } catch (NumberFormatException e) {
-            System.out.println("Please enter a valid number.");
-        }
+        menu.add(productsButton);
+        menu.add(Box.createVerticalStrut(10));
+
+        menu.add(clientsButton);
+        menu.add(Box.createVerticalStrut(10));
+
+        menu.add(balanceButton);
+        menu.add(Box.createVerticalStrut(10));
+
+        menu.add(paymentButton);
+        menu.add(Box.createVerticalStrut(10));
+
+        menu.add(becomeClientButton);
+        menu.add(Box.createVerticalStrut(10));
+
+        menu.add(logoutButton);
+
+        panel.add(menu);
+
+        // Returns the completed GUI panel to Context.
+        return panel;
     }
 
-    // Add a new client
+    // Replaces Scanner input with GUI input dialogs.
+    // Adds the client through the existing Warehouse method and registers the client with Context.
     private void addClient() {
 
-        System.out.print("Enter client name: ");
-        String name = context.getScanner().nextLine();
+        String name = JOptionPane.showInputDialog(
+            context.getFrame(),
+            "Enter client name:"
+        );
 
-        System.out.print("Enter client address: ");
-        String address = context.getScanner().nextLine();
-
-        Client client = context.getWarehouse().addClient(name, address);
-
-        // Register client so the FSM can validate client IDs
-        context.registerClient(client);
-
-        System.out.println("Client successfully added:");
-        System.out.println(client);
-    }
-
-    // Display all clients created during this session
-    private void displayAllClients() {
-
-        System.out.println("\n========== ALL CLIENTS ==========");
-
-        if (context.getKnownClients().isEmpty()) {
-            System.out.println("No clients found.");
+        if (name == null) {
             return;
         }
 
-        for (Client client : context.getKnownClients()) {
-            System.out.println(client);
+        String address = JOptionPane.showInputDialog(
+            context.getFrame(),
+            "Enter client address:"
+        );
+
+        if (address == null) {
+            return;
         }
+
+        if (name.trim().isEmpty() || address.trim().isEmpty()) {
+            JOptionPane.showMessageDialog(
+                context.getFrame(),
+                "Name and address cannot be empty."
+            );
+            return;
+        }
+
+        Client client = context.getWarehouse().addClient(
+            name.trim(),
+            address.trim()
+        );
+
+        // Registers the new client so the FSM can validate IDs.
+        context.registerClient(client);
+
+        // Displays the new client in a GUI dialog.
+        JOptionPane.showMessageDialog(
+            context.getFrame(),
+            "Client successfully added:\n" + client,
+            "CLIENT ADDED",
+            JOptionPane.INFORMATION_MESSAGE
+        );
     }
 
-    // Display clients who have an outstanding balance
+    // Displays all clients created during this session.
+    // Uses a GUI text area instead of System.out.println().
+    private void displayAllClients() {
+
+        StringBuilder output = new StringBuilder();
+
+        if (context.getKnownClients().isEmpty()) {
+            output.append("No clients found.");
+        } else {
+            for (Client client : context.getKnownClients()) {
+                output.append(client).append("\n\n");
+            }
+        }
+
+        showTextOutput("ALL CLIENTS", output.toString());
+    }
+
+    // Finds clients with a negative balance.
+    // Displays the results in a GUI dialog.
     private void displayClientsWithBalance() {
 
-        System.out.println("\n===== CLIENTS WITH OUTSTANDING BALANCE =====");
-
+        StringBuilder output = new StringBuilder();
         boolean found = false;
 
         for (Client client : context.getKnownClients()) {
 
-            // Purchases subtract from the client's balance
+            // Purchases subtract from the client's balance.
             if (client.getBalance() < 0) {
-                System.out.println(client);
+                output.append(client).append("\n\n");
                 found = true;
             }
         }
 
         if (!found) {
-            System.out.println("No clients have an outstanding balance.");
+            output.append("No clients have an outstanding balance.");
         }
+
+        showTextOutput(
+            "CLIENTS WITH OUTSTANDING BALANCE",
+            output.toString()
+        );
     }
 
-    // Record a payment from a client
+    // Replaces Scanner input with GUI input dialogs.
+    // Validates the client ID and payment amount.
     private void recordPayment() {
 
-        System.out.print("Enter Client ID: ");
-        String clientID = context.getScanner().nextLine();
+        String clientID = JOptionPane.showInputDialog(
+            context.getFrame(),
+            "Enter Client ID:"
+        );
+
+        if (clientID == null) {
+            return;
+        }
+
+        //clientID = clientID.trim();
+        final String enteredClientID = clientID.trim();
 
         Client client = context.findClient(clientID);
 
         if (client == null) {
-            System.out.println("Invalid Client ID.");
+            JOptionPane.showMessageDialog(
+                context.getFrame(),
+                "Invalid Client ID."
+            );
             return;
         }
 
-        System.out.print("Enter payment amount: ");
-        String input = context.getScanner().nextLine();
+        String input = JOptionPane.showInputDialog(
+            context.getFrame(),
+            "Enter payment amount:"
+        );
+
+        if (input == null) {
+            return;
+        }
 
         try {
-            double amount = Double.parseDouble(input);
+            double amount = Double.parseDouble(input.trim());
 
             if (amount <= 0) {
-                System.out.println("Payment amount must be greater than zero.");
+                JOptionPane.showMessageDialog(
+                    context.getFrame(),
+                    "Payment amount must be greater than zero."
+                );
                 return;
             }
 
-            context.getWarehouse().receivePayment(clientID, amount);
+            // Uses the existing Warehouse payment method.
+            showWarehouseOutput(() ->
+                context.getWarehouse().receivePayment(clientID, amount)
+            );
 
         } catch (NumberFormatException e) {
-            System.out.println("Please enter a valid payment amount.");
+            JOptionPane.showMessageDialog(
+                context.getFrame(),
+                "Please enter a valid payment amount."
+            );
         }
     }
 
-    // Switch from clerk mode to client mode
+    // Replaces Scanner input with a GUI input dialog.
+    // Validates the client ID and uses the existing BECOME_CLIENT transition in the FSM.
     private void becomeClient() {
 
-        System.out.print("Enter Client ID: ");
-        String clientID = context.getScanner().nextLine();
+        String clientID = JOptionPane.showInputDialog(
+            context.getFrame(),
+            "Enter Client ID:"
+        );
+
+        if (clientID == null) {
+            return;
+        }
+
+        clientID = clientID.trim();
 
         if (context.findClient(clientID) == null) {
-            System.out.println("Invalid Client ID.");
+            JOptionPane.showMessageDialog(
+                context.getFrame(),
+                "Invalid Client ID."
+            );
             return;
         }
 
@@ -163,6 +265,33 @@ public class ClerkMenuState extends UIState {
         context.changeState(Context.BECOME_CLIENT);
     }
 
+    // Displays output from existing Warehouse methods that print information using System.out.println().
+    private void showWarehouseOutput(Runnable action) {
+
+        String output = context.captureOutput(action);
+
+        showTextOutput("WAREHOUSE INFORMATION", output);
+    }
+
+    // Reusable helper for displaying text in a GUI dialog.
+    private void showTextOutput(String title, String output) {
+
+        JTextArea textArea = new JTextArea(output, 15, 40);
+        textArea.setEditable(false);
+        textArea.setLineWrap(true);
+        textArea.setWrapStyleWord(true);
+
+        JScrollPane scrollPane = new JScrollPane(textArea);
+
+        JOptionPane.showMessageDialog(
+            context.getFrame(),
+            scrollPane,
+            title,
+            JOptionPane.INFORMATION_MESSAGE
+        );
+    }
+
+    // Identifies this state as CLERK in the FSM.
     @Override
     public int getStateIndex() {
         return Context.CLERK;

@@ -1,3 +1,5 @@
+import javax.swing.JPanel;
+
 public abstract class UIState {
 
     protected Context context;
@@ -6,7 +8,8 @@ public abstract class UIState {
         this.context = context;
     }
 
-    public abstract void run();
+    // Each state builds and returns its own GUI panel
+    public abstract JPanel createPanel();
 
     public abstract int getStateIndex();
 }

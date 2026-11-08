@@ -1,68 +1,99 @@
+import javax.swing.*;
+import java.awt.*;
+
 public class OpeningState extends UIState {
 
     public OpeningState(Context context) {
         super(context);
     }
 
+    // Replaced old run() method with createPanel().
+    // Instead of printing a menu to the console, creates and returns a Swing panel for the GUI.
     @Override
-    public void run() {
+    public JPanel createPanel() {
 
-        System.out.println("\n========== WAREHOUSE LOGIN ==========");
-        System.out.println("1. Login as Client");
-        System.out.println("2. Login as Clerk");
-        System.out.println("3. Login as Manager");
-        System.out.println("0. Exit");
+        // Creates the main panel and centers the login menu.
+        JPanel panel = new JPanel();
+        panel.setLayout(new GridBagLayout());
 
-        System.out.print("Enter choice: ");
+        // Creates a vertical layout for the title and buttons.
+        JPanel menu = new JPanel();
+        menu.setLayout(new BoxLayout(menu, BoxLayout.Y_AXIS));
 
-        String input = context.getScanner().nextLine();
-        int choice;
-        try {
-            choice = Integer.parseInt(input.trim());
-        } catch (NumberFormatException e) {
-            System.out.println("Please enter a valid number.");
-            return;
-        }
+        // Replaces the console heading with a GUI label.
+        JLabel title = new JLabel("WAREHOUSE LOGIN");
+        title.setFont(new Font("Arial", Font.BOLD, 24));
+        title.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        switch (choice) {
+        // Replaces the numbered console menu options with buttons.
+        JButton clientButton = new JButton("Login as Client");
+        JButton clerkButton = new JButton("Login as Clerk");
+        JButton managerButton = new JButton("Login as Manager");
+        JButton exitButton = new JButton("Exit");
 
-            case 1:
-                loginClient();
-                break;
+        // Each button gets its own action listener.
+        // This replaces original switch statement that checked which numbered option the user entered.
+        clientButton.addActionListener(e -> loginClient());
 
-            case 2:
-                context.changeState(Context.LOGIN_CLERK);
-                break;
+        clerkButton.addActionListener(e ->
+            context.changeState(Context.LOGIN_CLERK)
+        );
 
-            case 3:
-                context.changeState(Context.LOGIN_MANAGER);
-                break;
+        managerButton.addActionListener(e ->
+            context.changeState(Context.LOGIN_MANAGER)
+        );
 
-            case 0:
-                System.out.println("Exiting Warehouse System.");
-                context.exit();
-                break;
+        // Replaces exit message and context.exit() call with a GUI button action.
+        exitButton.addActionListener(e -> context.exit());
 
-            default:
-                System.out.println("Invalid choice. Try again.");
-        }
+        // Arranges the title and buttons vertically.
+        menu.add(title);
+        menu.add(Box.createVerticalStrut(25));
+        menu.add(clientButton);
+        menu.add(Box.createVerticalStrut(10));
+        menu.add(clerkButton);
+        menu.add(Box.createVerticalStrut(10));
+        menu.add(managerButton);
+        menu.add(Box.createVerticalStrut(10));
+        menu.add(exitButton);
+
+        panel.add(menu);
+
+        // Returns the completed GUI panel to Context.
+        return panel;
     }
 
+    // The original loginClient() used Scanner to read the Client ID from the console. It now uses a GUI input dialog.
     private void loginClient() {
 
-        System.out.print("Enter Client ID: ");
-        String clientID = context.getScanner().nextLine().trim();
+        String clientID = JOptionPane.showInputDialog(
+            context.getFrame(),
+            "Enter Client ID:"
+        );
 
-        // Validate that the client exists
-        if (context.findClient(clientID) == null) {
-            System.out.println("Invalid Client ID. Please try again.");
+        // Allows the user to cancel the input dialog.
+        if (clientID == null) {
             return;
         }
 
+        clientID = clientID.trim();
+
+        // Still checks whether the entered Client ID exists.
+        // Error message now appears in a GUI dialog instead of being printed to the console.
+        if (context.findClient(clientID) == null) {
+            JOptionPane.showMessageDialog(
+                context.getFrame(),
+                "Invalid Client ID. Please try again."
+            );
+            return;
+        }
+
+        // Stores the Client ID and changes FSM state.
         context.setClientID(clientID);
         context.changeState(Context.LOGIN_CLIENT);
     }
 
+    // Identifies this state as OPENING in the FSM.
     @Override
     public int getStateIndex() {
         return Context.OPENING;
